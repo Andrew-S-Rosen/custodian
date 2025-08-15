@@ -715,20 +715,32 @@ class VaspJob(Job):
         """
         work_dir = directory
         logger.info(f"Killing VASP processes in {work_dir=}.")
-        for proc in psutil.process_iter():
+        vasprun_path = os.path.join(work_dir, "vasprun.xml")
+        
+        for proc in psutil.process_iter(attrs=["name", "open_files"], ad_value=None):
             try:
-                if "vasp" in proc.name().lower():
-                    open_paths = [file.path for file in proc.open_files()]
-                    vasprun_path = os.path.join(work_dir, "vasprun.xml")
-                    if (vasprun_path in open_paths) and psutil.pid_exists(proc.pid):
+                name = (proc.info["name"] or "").lower()
+                if "vasp" not in name:
+                    continue
+        
+                open_paths = [f.path for f in (proc.info["open_files"] or [])]
+                if vasprun_path not in open_paths:
+                    continue
+        
+                if psutil.pid_exists(proc.pid):
+                    try:
                         proc.kill()
                         return
-            except (psutil.NoSuchProcess, psutil.AccessDenied) as exc:
-                logger.exception(f"Exception {exc} encountered while killing VASP.")
-                continue
-
+                    except (psutil.NoSuchProcess, psutil.AccessDenied) as exc:
+                        logger.exception(f"Exception {exc} encountered while killing VASP.")
+        
+            except Exception as exc:
+                # Shouldn't happen normally, but we log unexpected failures
+                logger.exception(f"Unexpected exception {exc} while iterating processes.")
+        
         logger.warning(
-            f"Killing VASP processes in {work_dir=} failed with subprocess.Popen.terminate(). Resorting to 'killall'."
+            f"Killing VASP processes in {work_dir=} failed with subprocess.Popen.terminate(). "
+            f"Resorting to 'killall'."
         )
         cmds = self.vasp_cmd
         if self.gamma_vasp_cmd:
