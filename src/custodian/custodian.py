@@ -675,6 +675,7 @@ class Custodian:
                     if terminate_func is not None and handler.is_terminating:
                         logger.info("Terminating job")
                         terminate_func(directory=self.directory)
+                        logger.info("Done terminating!")
                         # make sure we don't terminate twice
                         terminate_func = None
                     dct = handler.correct(directory=self.directory)

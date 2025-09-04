@@ -705,6 +705,7 @@ class VaspJob(Job):
 
     def terminate(self, directory="./") -> None:
         """Kill all VASP processes associated with the current job."""
+        logger.info("NOTE: 1")
         if self._vasp_process.poll() is not None:
             logger.warning("The process was already done!")
             return
